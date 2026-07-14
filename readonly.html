@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Telefonliste & Triage-Planung</title>
+<title>Telefonliste & Triage-Planung (Ansicht)</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#f5f5f3;color:#222;min-height:100vh}
@@ -97,11 +97,10 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 <body>
 <div class="app">
   <h1>Telefonliste &amp; Triage-Planung</h1>
-  <p class="sub">7education AG &middot; Kanton St. Gallen</p>
+  <p class="sub">7education AG &middot; Kanton St. Gallen &middot; <span style="color:#2d7d46;font-weight:500">&#128274; Nur Ansicht</span></p>
   <div class="tabs">
     <button class="tab active" onclick="showTab('k')">Kalender</button>
-    <button class="tab" onclick="showTab('s')">Standard</button>
-    <button class="tab" onclick="showTab('m')">Mitarbeitende</button>
+
   </div>
 
   <div id="tab-k" class="panel active">
@@ -118,50 +117,14 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
       <span style="width:1px;background:#ddd;height:20px;margin:0 2px;display:inline-block"></span>
       <span style="font-size:12px;color:#888">Filter:</span>
       <div id="filter-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
-      <span class="sync-indicator" id="sync" title="">&#9679; verbunden</span>
-      <button onclick="auth.signOut()" style="font-size:11px;padding:4px 8px;color:#888;border-color:#ddd">Abmelden</button>
-      <button class="del" onclick="resetM()" style="margin-left:auto">Monat zur&uuml;cksetzen</button>
-      <button class="pr" onclick="doCSV()">&darr; CSV</button>
+
+
     </div>
     <div id="roster"><div class="loading">Verbinde mit Datenbank&#8230;</div></div>
     <div class="legend" id="leg"></div>
   </div>
 
-  <div id="tab-s" class="panel">
-    <div class="stdbox">
-      <h3>Standard-Rotation bearbeiten</h3>
-      <table class="stdtbl" id="stdt"></table>
-      <div class="arow">
-        <span class="note">Standard anwenden auf:</span>
-        <select id="am" style="min-width:100px">
-          <option value="0">Januar</option><option value="1">Februar</option>
-          <option value="2">M&auml;rz</option><option value="3">April</option>
-          <option value="4">Mai</option><option value="5">Juni</option>
-          <option value="6">Juli</option><option value="7">August</option>
-          <option value="8">September</option><option value="9">Oktober</option>
-          <option value="10">November</option><option value="11">Dezember</option>
-        </select>
-        <select id="ay"><option value="2026">2026</option><option value="2027">2027</option></select>
-        <button class="ok" onclick="applyS()">&check; Auf Monat anwenden</button>
-        <button class="ok" onclick="applyAll()" style="background:#e8f0ff;color:#1a4fa8;border-color:#b0c4f5">&check;&check; Auf ganzes Jahr anwenden</button>
-        <span class="note">&middot; l&ouml;scht manuelle &Auml;nderungen ab heute</span>
-      </div>
-    </div>
-  </div>
-
-  <div id="tab-m" class="panel">
-    <p style="font-size:12px;color:#888;margin-bottom:12px">K&uuml;rzel werden im Kalender und Standard verwendet.</p>
-    <div class="magrid" id="mag"></div>
-  </div>
-</div>
-
 <!-- Firebase -->
-<div id="login-screen">
-  <div class="login-box">
-    <div>
-      <h2>Telefonliste &amp; Triage-Planung</h2>
-      <p>7education AG &middot; Bitte anmelden</p>
-    </div>
     <input type="email" id="login-email" placeholder="E-Mail" autocomplete="email">
     <input type="password" id="login-pw" placeholder="Passwort" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
     <div class="login-error" id="login-err">E-Mail oder Passwort falsch.</div>
@@ -170,7 +133,6 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 </div>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 // Firebase config
 firebase.initializeApp({
@@ -183,35 +145,7 @@ firebase.initializeApp({
   appId: "1:116475205333:web:294fb62295b8c05316345c"
 });
 var db = firebase.database();
-var auth = firebase.auth();
-
-function doLogin(){
-  var email=document.getElementById('login-email').value.trim();
-  var pw=document.getElementById('login-pw').value;
-  var errEl=document.getElementById('login-err');
-  errEl.style.display='none';
-  auth.signInWithEmailAndPassword(email,pw)
-    .catch(function(){
-      errEl.style.display='block';
-    });
-}
-
-auth.onAuthStateChanged(function(user){
-  if(user){
-    document.getElementById('login-screen').style.display='none';
-    // Show logged in user in toolbar
-    var si=document.getElementById('sync');
-    if(si){
-      var name=user.email.split('@')[0];
-      si.title='Angemeldet als: '+user.email;
-    }
-    initFirebase();
-  } else {
-    document.getElementById('login-screen').style.display='flex';
-    READY=false;
-    document.getElementById('roster').innerHTML='<div class="loading">Bitte anmelden&#8230;</div>';
-  }
-});
+// Read-only: load data directly without login
 
 // App state
 var MN=['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
@@ -389,19 +323,19 @@ function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
     var ds=iso(d),isHol=HOL[ds];
     r+='<div>';
     if(isEmpty){
-      r+='<button class="cell mt" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
+      r+='<button class="cell mt" style="cursor:default">+</button>';
     } else if(isHol){
       r+='<button class="cell hc" disabled title="'+HOL[ds]+'">&mdash;</button>';
     } else {
       var val=getVal(ds,slot);
       if(!val){
-        r+='<button class="cell mt" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
+        r+='<button class="cell mt" style="cursor:default">+</button>';
       } else {
         var mod=hasOverride(ds,slot)?'<span style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;opacity:0.9">&#9998;</span>':'';
         var isMatch=FILTER&&val===FILTER;
         var isFaded=FILTER&&val!==FILTER;
         var cls='cell'+(isMatch?' match':isFaded?' faded':'');
-        r+='<button class="'+cls+'" style="background:'+maBg(val)+';color:'+maTx(val)+';position:relative" onclick="editC(\''+ds+'\',\''+slot+'\',this)">'+val+mod+'</button>';
+        r+='<button class="'+cls+'" style="background:'+maBg(val)+';color:'+maTx(val)+';position:relative" style="cursor:default">'+val+mod+'</button>';
       }
     }
     r+='</div>';
@@ -409,35 +343,9 @@ function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
   return r+'</div>';
 }
 
-function editC(ds,slot,btn){
-  if(btn.querySelector('select')||btn.disabled)return;
-  var cur=OV&&OV.hasOwnProperty(ovKey(ds,slot))?OV[ovKey(ds,slot)]:(STD[slot]?STD[slot][didx(ds)]||'':'');
-  var o='<option value="">Leer</option>';
-  MA.forEach(function(m){o+='<option value="'+m.id+'"'+(m.id===cur?' selected':'')+'>'+m.id+'</option>';});
-  btn.innerHTML='<select onchange="saveC(\''+ds+'\',\''+slot+'\',this.value)" onblur="renderKal()">'+o+'</select>';
-  btn.querySelector('select').focus();
-}
 
-function saveC(ds,slot,val){
-  if(!OV)OV={};
-  var def=STD[slot]?STD[slot][didx(ds)]||'':'';
-  if(val===''){
-    // User explicitly chose Leer
-    if(def===''){
-      // Standard is also empty — no need to store
-      delete OV[ovKey(ds,slot)];
-    } else {
-      // Store as LEER to override non-empty standard
-      OV[ovKey(ds,slot)]='LEER';
-    }
-  } else if(val===def){
-    // Matches standard — remove override
-    delete OV[ovKey(ds,slot)];
-  } else {
-    OV[ovKey(ds,slot)]=val;
-  }
-  persistOV();
-}
+
+
 
 function renderLeg(){
   var h=MA.map(function(m){return '<div class="li"><span class="ld" style="background:'+m.color+'"></span>'+m.name+'</div>';}).join('');
@@ -582,7 +490,8 @@ function showTab(t){
   if(t==='m')renderMA();
 }
 
-// Start — auth.onAuthStateChanged handles initFirebase()
+// Start
+initFirebase();
 </script>
 </body>
 </html>
