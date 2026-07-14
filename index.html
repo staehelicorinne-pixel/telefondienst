@@ -36,9 +36,9 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 
 .week{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;margin-bottom:2px}
 .week.cur-week{background:#eef2ff;border-radius:6px;padding:3px 3px 0 3px}
-.gap{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;height:8px;margin-bottom:2px}
+.gap{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;height:12px;margin-bottom:2px;margin-top:2px}
 .gap.cur-week{background:#eef2ff;padding:0 3px}
-.gap-line{border-top:1.5px solid #dde}
+.gap-line{border-top:3px solid #ccc}
 .wk-hdr{font-size:10px;color:#aaa;text-align:center;padding:2px 0;border-radius:4px}
 .wk-hdr .dn{font-size:9px;color:#ccc}
 .wk-hdr.hol{background:#fdeaf3;color:#c0397a}.wk-hdr.hol .dn{color:#e0a0c0}
@@ -132,7 +132,8 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
         </select>
         <select id="ay"><option value="2026">2026</option><option value="2027">2027</option></select>
         <button class="ok" onclick="applyS()">&check; Auf Monat anwenden</button>
-        <span class="note">&middot; l&ouml;scht manuelle &Auml;nderungen</span>
+        <button class="ok" onclick="applyAll()" style="background:#e8f0ff;color:#1a4fa8;border-color:#b0c4f5">&check;&check; Auf ganzes Jahr anwenden</button>
+        <span class="note">&middot; l&ouml;scht manuelle &Auml;nderungen ab heute</span>
       </div>
     </div>
   </div>
@@ -162,8 +163,9 @@ var db = firebase.database();
 // App state
 var MN=['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 var DN=['Mo','Di','Mi','Do','Fr'];
-var SLOTS=['Morgen1','MorgenT','Nach1','NachT'];
-var SLBL={'Morgen1':'Morgen 1','MorgenT':'Triage','Nach1':'Nachm. 1','NachT':'Triage'};
+var STD_SLOTS=['Morgen1','MorgenT','Nach1','NachT'];
+var ALL_SLOTS=['Morgen1','MorgenT','Nach1','NachT','Morgen2','Nach2'];
+var SLBL={'Morgen1':'Morgen 1','MorgenT':'Triage','Nach1':'Nachm. 1','NachT':'Triage','Morgen2':'Morgen 2','Nach2':'Nachm. 2'};
 var PAL=['#c8a000','#c0397a','#2d7d46','#1a6fa8','#7b4fa6','#d4840a','#0f8c8c','#b03a2e','#1a5276','#6c3483','#1e8449','#d35400'];
 var HOL={
   '2026-01-01':'Neujahrstag','2026-01-02':'Berchtoldstag',
@@ -189,7 +191,9 @@ var STD={
   Morgen1:['FED','FCE','TAG','FED','TAG'],
   MorgenT:['HPH','TAG','HPH','TAG','FED'],
   Nach1:['TAG','FCE','COS','TAG','HPH'],
-  NachT:['FED','TAG','FED','HPH','TAG']
+  NachT:['FED','TAG','FED','HPH','TAG'],
+  Morgen2:['','','','',''],
+  Nach2:['','','','','']
 };
 var OV={};
 var VIEW=2;
@@ -226,6 +230,7 @@ function initFirebase(){
     renderKal();
     renderFilterBtns();
     renderLeg();
+    renderStd();
   }, function(err){
     setSyncStatus('error');
     document.getElementById('roster').innerHTML='<div class="loading" style="color:#c0392b">Verbindungsfehler. Bitte Seite neu laden.</div>';
@@ -248,12 +253,15 @@ function maBg(id){var m=MA.find(function(x){return x.id===id;});return m?m.color
 function maTx(id){var m=MA.find(function(x){return x.id===id;});if(!m)return'#333';return isDark(m.color)?'#f0f0f0':'#1a1a1a';}
 
 function getVal(ds,slot){
-  // Firebase key-safe: replace | with __
   var k=ds+'__'+slot;
-  if(OV&&OV.hasOwnProperty(k))return OV[k];
+  if(OV&&OV.hasOwnProperty(k)){
+    var v=OV[k];
+    return v==='LEER'?'':v;  // LEER = explicitly empty, don't fall back to STD
+  }
   if(HOL.hasOwnProperty(ds))return'';
   return STD[slot]?STD[slot][didx(ds)]:'';
 }
+function hasOverride(ds,slot){return OV&&OV.hasOwnProperty(ds+'__'+slot);}
 function ovKey(ds,slot){return ds+'__'+slot;}
 
 function getWeeksFrom(startMon,count){
@@ -312,11 +320,11 @@ function renderKal(){
     });
     h+='</div>';
     h+=mkRow('Morgen','Morgen1',days,false,true,isCW);
-    h+=mkRow('2','Morgen2',days,true,false,isCW);
+    h+=mkRow('2','Morgen2',days,false,false,isCW);
     h+=mkRow('Triage','MorgenT',days,false,false,isCW);
     h+='<div class="gap'+(isCW?' cur-week':'')+'"><div></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div></div>';
     h+=mkRow('Nachm.','Nach1',days,false,true,isCW);
-    h+=mkRow('2','Nach2',days,true,false,isCW);
+    h+=mkRow('2','Nach2',days,false,false,isCW);
     h+=mkRow('Triage','NachT',days,false,false,isCW);
   });
   document.getElementById('roster').innerHTML=h;
@@ -336,7 +344,7 @@ function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
       if(!val){
         r+='<button class="cell mt" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
       } else {
-        var mod=OV&&OV.hasOwnProperty(ovKey(ds,slot))?'<span style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;opacity:0.9">&#9998;</span>':'';
+        var mod=hasOverride(ds,slot)?'<span style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;opacity:0.9">&#9998;</span>':'';
         var isMatch=FILTER&&val===FILTER;
         var isFaded=FILTER&&val!==FILTER;
         var cls='cell'+(isMatch?' match':isFaded?' faded':'');
@@ -358,9 +366,19 @@ function editC(ds,slot,btn){
 }
 
 function saveC(ds,slot,val){
-  var def=STD[slot]?STD[slot][didx(ds)]||'':'';
   if(!OV)OV={};
-  if(val===def||val===''){
+  var def=STD[slot]?STD[slot][didx(ds)]||'':'';
+  if(val===''){
+    // User explicitly chose Leer
+    if(def===''){
+      // Standard is also empty — no need to store
+      delete OV[ovKey(ds,slot)];
+    } else {
+      // Store as LEER to override non-empty standard
+      OV[ovKey(ds,slot)]='LEER';
+    }
+  } else if(val===def){
+    // Matches standard — remove override
     delete OV[ovKey(ds,slot)];
   } else {
     OV[ovKey(ds,slot)]=val;
@@ -383,7 +401,7 @@ function renderStd(){
   document.getElementById('ay').value=CY;
   var h='<tr><th style="width:120px"></th>';
   DN.forEach(function(d){h+='<th>'+d+'</th>';});h+='</tr>';
-  SLOTS.forEach(function(slot){
+  STD_SLOTS.forEach(function(slot){
     h+='<tr><td class="sl">'+SLBL[slot]+'</td>';
     [0,1,2,3,4].forEach(function(i){
       h+='<td><select onchange="updS(\''+slot+'\','+i+',this.value)">';
@@ -395,6 +413,30 @@ function renderStd(){
   document.getElementById('stdt').innerHTML=h;
 }
 function updS(slot,i,val){STD[slot][i]=val;persistSTD();}
+
+function applyAll(){
+  var y=parseInt(document.getElementById('ay').value);
+  var today=new Date();today.setHours(0,0,0,0);
+  if(!confirm('Standard auf alle Monate ab heute bis Ende '+y+' anwenden?\nAlle manuellen \u00c4nderungen ab heute werden gel\u00f6scht.'))return;
+  if(!OV)OV={};
+  // Loop through all months from current month to end of year
+  var startM=today.getMonth();
+  for(var m=startM;m<12;m++){
+    var seen={};
+    getWeeksInMonth(y,m).forEach(function(days){
+      days.forEach(function(d){
+        // Only clear from today onwards
+        if(d<today)return;
+        var ds=iso(d);
+        if(seen[ds])return;seen[ds]=1;
+        ALL_SLOTS.forEach(function(s){delete OV[ovKey(ds,s)];});
+      });
+    });
+  }
+  persistOV();
+  ANCHOR=monDate(today);
+  showTab('k');
+}
 function applyS(){
   var m=parseInt(document.getElementById('am').value);
   var y=parseInt(document.getElementById('ay').value);
@@ -403,7 +445,7 @@ function applyS(){
   var seen={};
   getWeeksInMonth(y,m).forEach(function(days){days.forEach(function(d){
     var ds=iso(d);if(seen[ds])return;seen[ds]=1;
-    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ovKey(ds,s)];});
+    ALL_SLOTS.forEach(function(s){delete OV[ovKey(ds,s)];});
   });});
   persistOV();
   ANCHOR=monDate(new Date(y,m,1));
@@ -455,7 +497,7 @@ function resetM(){
   var seen={};
   getWeeksInMonth(CY,CM).forEach(function(days){days.forEach(function(d){
     var ds=iso(d);if(seen[ds])return;seen[ds]=1;
-    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ovKey(ds,s)];});
+    ALL_SLOTS.forEach(function(s){delete OV[ovKey(ds,s)];});
   });});
   persistOV();
 }
