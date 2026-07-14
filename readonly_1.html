@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telefonliste & Triage-Planung (Ansicht)</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#f5f5f3;color:#222;min-height:100vh}
+.app{max-width:940px;margin:0 auto;padding:20px 16px}
+h1{font-size:18px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
+.sub{font-size:12px;color:#888;margin-bottom:16px}
+.tabs{display:flex;border-bottom:1.5px solid #ddd;margin-bottom:16px}
+.tab{font-size:12px;padding:7px 16px;cursor:pointer;border:none;background:none;color:#888;border-bottom:2px solid transparent;margin-bottom:-1.5px;font-weight:500}
+.tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a}
+.panel{display:none}.panel.active{display:block}
+.tb{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+select,button{font-size:12px;padding:5px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#222}
+button:hover{background:#f0f0f0}
+button.pr{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+button.pr:hover{background:#333}
+button.ok{background:#e8f5e9;color:#2d7d46;border-color:#b2dfbb}
+button.del{background:#fdeaea;color:#c0392b;border-color:#f5c0c0}
+button.today-btn{background:#e8eeff;color:#1a4fa8;border-color:#b0c4f5;font-weight:600}
+button.filter-btn{font-weight:600;transition:all 0.15s}
+button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.view-toggle{display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden}
+.view-toggle button{border:none;border-radius:0;border-right:1px solid #ddd;padding:5px 10px;font-size:12px}
+.view-toggle button:last-child{border-right:none}
+.view-toggle button.active{background:#1a1a1a;color:#fff}
+.range-label{font-size:12px;color:#666;min-width:160px;text-align:center}
+.sync-indicator{font-size:11px;color:#aaa;margin-left:4px}
+.sync-indicator.saving{color:#f0a500}
+.sync-indicator.saved{color:#2d7d46}
+.sync-indicator.error{color:#c0392b}
+
+.week{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;margin-bottom:2px}
+.week.cur-week{background:#eef2ff;border-radius:6px;padding:3px 3px 0 3px}
+.gap{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;height:12px;margin-bottom:2px;margin-top:2px}
+.gap.cur-week{background:#eef2ff;padding:0 3px}
+.gap-line{border-top:3px solid #ccc}
+.wk-hdr{font-size:10px;color:#aaa;text-align:center;padding:2px 0;border-radius:4px}
+.wk-hdr .dn{font-size:9px;color:#ccc}
+.wk-hdr.hol{background:#fdeaf3;color:#c0397a}.wk-hdr.hol .dn{color:#e0a0c0}
+.wk-hdr.hn{font-size:8px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wk-hdr.out{opacity:0.22}
+.wk-hdr.today{background:#1a1a1a;color:#fff;border-radius:6px}.wk-hdr.today .dn{color:#999}
+.rl{font-size:11px;color:#777;display:flex;align-items:center;padding-left:4px}
+.rl.sec{font-weight:600;color:#333;font-size:12px}
+.cell{height:27px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;cursor:pointer;border:none;width:100%;transition:opacity 0.12s}
+.cell:hover{opacity:0.82}
+.cell.mt{background:#f5f5f5;border:1px solid #e8e8e8;color:#ccc;font-weight:400}
+.cell.hc{background:#f9f0f5;border:1px dashed #dda0c0;opacity:0.45;cursor:default}
+.cell.ou{opacity:0.22}
+.cell.faded{opacity:0.15}
+.cell.match{outline:3px solid #1a1a1a;outline-offset:1px}
+.cell select{background:transparent;border:none;font-size:11px;font-weight:600;width:100%;text-align:center;cursor:pointer;outline:none}
+.week-sep{height:16px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 0 0;border-top:1px solid #eee;margin-top:10px;align-items:center}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:#666}
+.ld{width:12px;height:12px;border-radius:3px;flex-shrink:0;display:inline-block}
+
+.magrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px}
+.macard{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;position:relative}
+.mabadge{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.madel{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:14px;color:#aaa;display:flex;align-items:center;justify-content:center;padding:0}
+.madel:hover{background:#fdeaea;color:#c0392b}
+.maform{background:#fafafa;border:1px dashed #ccc;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.maform input{font-size:12px;padding:5px 8px;border:1px solid #ddd;border-radius:5px}
+.maform label{font-size:11px;color:#666}
+.swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+.sw.sel{border-color:#222;box-shadow:0 0 0 2px #fff inset}
+.swc{width:26px;height:26px;padding:0;border:1px solid #ddd;border-radius:50%;cursor:pointer}
+
+.stdbox{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:14px;margin-bottom:14px}
+.stdbox h3{font-size:12px;font-weight:600;margin-bottom:10px;color:#444}
+.stdtbl{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed}
+.stdtbl th{font-size:10px;color:#aaa;font-weight:400;text-align:center;padding:2px}
+.stdtbl td.sl{font-size:11px;color:#555;padding-left:4px;width:120px}
+.stdtbl select{font-size:11px;height:26px;border-radius:4px;width:100%;text-align:center;padding:2px}
+.arow{display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid #eee;flex-wrap:wrap}
+.note{font-size:11px;color:#bbb}
+.loading{text-align:center;padding:40px;color:#aaa;font-size:13px}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Telefonliste &amp; Triage-Planung</h1>
+  <p class="sub">7education AG &middot; Kanton St. Gallen &middot; <span style="color:#2d7d46;font-weight:500">&#128274; Nur Ansicht</span></p>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('k')">Kalender</button>
+
+  </div>
+
+  <div id="tab-k" class="panel active">
+    <div class="tb">
+      <div class="view-toggle">
+        <button id="v1" onclick="setView(1)">1 Woche</button>
+        <button id="v2" class="active" onclick="setView(2)">2 Wochen</button>
+        <button id="v4" onclick="setView(4)">Monat</button>
+      </div>
+      <button onclick="navPrev()">&larr;</button>
+      <span class="range-label" id="range-lbl"></span>
+      <button onclick="navNext()">&rarr;</button>
+      <button class="today-btn" onclick="goToday()">Heute</button>
+      <span style="width:1px;background:#ddd;height:20px;margin:0 2px;display:inline-block"></span>
+      <span style="font-size:12px;color:#888">Filter:</span>
+      <div id="filter-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+
+
+    </div>
+    <div id="roster"><div class="loading">Verbinde mit Datenbank&#8230;</div></div>
+    <div class="legend" id="leg"></div>
+  </div>
+
+<!-- Firebase -->
+  </div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+// Firebase config
+firebase.initializeApp({
+  apiKey: "AIzaSyCsy_aSE0MWcMzeK0eNfcstXfzm1sgfSDo",
+  authDomain: "telefondienst-7education.firebaseapp.com",
+  databaseURL: "https://telefondienst-7education-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "telefondienst-7education",
+  storageBucket: "telefondienst-7education.firebasestorage.app",
+  messagingSenderId: "116475205333",
+  appId: "1:116475205333:web:294fb62295b8c05316345c"
+});
+var db = firebase.database();
+// Read-only: load data directly without login
+
+// App state
+var MN=['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+var DN=['Mo','Di','Mi','Do','Fr'];
+var STD_SLOTS=['Morgen1','MorgenT','Nach1','NachT'];
+var ALL_SLOTS=['Morgen1','MorgenT','Nach1','NachT','Morgen2','Nach2'];
+var SLBL={'Morgen1':'Morgen 1','MorgenT':'Triage','Nach1':'Nachm. 1','NachT':'Triage','Morgen2':'Morgen 2','Nach2':'Nachm. 2'};
+var PAL=['#c8a000','#c0397a','#2d7d46','#1a6fa8','#7b4fa6','#d4840a','#0f8c8c','#b03a2e','#1a5276','#6c3483','#1e8449','#d35400'];
+var HOL={
+  '2026-01-01':'Neujahrstag','2026-01-02':'Berchtoldstag',
+  '2026-04-03':'Karfreitag','2026-04-06':'Ostermontag',
+  '2026-05-14':'Christi Himmelfahrt','2026-05-25':'Pfingstmontag',
+  '2026-08-01':'Nationalfeiertag','2026-11-01':'Allerheiligen',
+  '2026-12-25':'Weihnachtstag','2026-12-26':'Stephanstag',
+  '2027-01-01':'Neujahrstag','2027-01-02':'Berchtoldstag',
+  '2027-03-26':'Karfreitag','2027-03-29':'Ostermontag',
+  '2027-05-06':'Christi Himmelfahrt','2027-05-17':'Pfingstmontag',
+  '2027-08-01':'Nationalfeiertag','2027-11-01':'Allerheiligen',
+  '2027-12-25':'Weihnachtstag','2027-12-26':'Stephanstag'
+};
+
+var MA=[
+  {id:'FED',name:'FED',color:'#c8a000'},
+  {id:'FCE',name:'FCE',color:'#c0397a'},
+  {id:'TAG',name:'TAG',color:'#2d7d46'},
+  {id:'HPH',name:'HPH',color:'#1a6fa8'},
+  {id:'COS',name:'COS',color:'#7b4fa6'}
+];
+var STD={
+  Morgen1:['FED','FCE','TAG','FED','TAG'],
+  MorgenT:['HPH','TAG','HPH','TAG','FED'],
+  Nach1:['TAG','FCE','COS','TAG','HPH'],
+  NachT:['FED','TAG','FED','HPH','TAG'],
+  Morgen2:['','','','',''],
+  Nach2:['','','','','']
+};
+var OV={};
+var VIEW=2;
+var ANCHOR=monDate(new Date());
+var FILTER='';
+var NC=PAL[5];
+var CM=new Date().getMonth(), CY=new Date().getFullYear();
+var READY=false;
+
+// Sync indicator
+function setSyncStatus(s){
+  var el=document.getElementById('sync');
+  if(!el)return;
+  if(s==='saving'){el.className='sync-indicator saving';el.innerHTML='&#9679; speichert...';}
+  else if(s==='saved'){el.className='sync-indicator saved';el.innerHTML='&#9679; gespeichert';setTimeout(function(){setSyncStatus('ok');},2000);}
+  else if(s==='error'){el.className='sync-indicator error';el.innerHTML='&#9679; Fehler';}
+  else{el.className='sync-indicator saved';el.innerHTML='&#9679; verbunden';}
+}
+
+// Firebase: write helpers
+function fbSet(path, val, cb){
+  setSyncStatus('saving');
+  db.ref(path).set(val).then(function(){setSyncStatus('saved');if(cb)cb();}).catch(function(){setSyncStatus('error');});
+}
+
+// Load all data from Firebase once, then listen for realtime changes
+function initFirebase(){
+  db.ref('/').on('value', function(snap){
+    var data=snap.val()||{};
+    if(data.overrides)OV=data.overrides; else OV={};
+    if(data.ma&&data.ma.length)MA=data.ma;
+    if(data.std)STD=data.std;
+    READY=true;
+    renderKal();
+    renderFilterBtns();
+    renderLeg();
+    renderStd();
+  }, function(err){
+    setSyncStatus('error');
+    document.getElementById('roster').innerHTML='<div class="loading" style="color:#c0392b">Verbindungsfehler. Bitte Seite neu laden.</div>';
+  });
+}
+
+// Persist to Firebase
+function persistOV(){fbSet('/overrides', OV);}
+function persistMA(){fbSet('/ma', MA);}
+function persistSTD(){fbSet('/std', STD);}
+
+// Helpers
+function monDate(d){var r=new Date(d),dy=r.getDay();r.setDate(r.getDate()-dy+(dy===0?-6:1));r.setHours(0,0,0,0);return r;}
+function addD(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function iso(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+function p2(n){return n<10?'0'+n:''+n;}
+function didx(ds){return(new Date(ds).getDay()+6)%7;}
+function isDark(h){var r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);return(r*299+g*587+b*114)/1000<145;}
+function maBg(id){var m=MA.find(function(x){return x.id===id;});return m?m.color:'#ccc';}
+function maTx(id){var m=MA.find(function(x){return x.id===id;});if(!m)return'#333';return isDark(m.color)?'#f0f0f0':'#1a1a1a';}
+
+function getVal(ds,slot){
+  var k=ds+'__'+slot;
+  if(OV&&OV.hasOwnProperty(k)){
+    var v=OV[k];
+    return v==='LEER'?'':v;  // LEER = explicitly empty, don't fall back to STD
+  }
+  if(HOL.hasOwnProperty(ds))return'';
+  return STD[slot]?STD[slot][didx(ds)]:'';
+}
+function hasOverride(ds,slot){return OV&&OV.hasOwnProperty(ds+'__'+slot);}
+function ovKey(ds,slot){return ds+'__'+slot;}
+
+function getWeeksFrom(startMon,count){
+  var ws=[];
+  for(var i=0;i<count;i++){var w=addD(startMon,i*7);ws.push([0,1,2,3,4].map(function(j){return addD(w,j);}));}
+  return ws;
+}
+function getWeeksInMonth(y,m){
+  var first=new Date(y,m,1),last=new Date(y,m+1,0),w=monDate(first),ws=[];
+  while(w<=last){ws.push([0,1,2,3,4].map(function(i){return addD(w,i);}));w=addD(w,7);}
+  return ws;
+}
+
+function setView(v){
+  VIEW=v;
+  ['v1','v2','v4'].forEach(function(id){document.getElementById(id).classList.toggle('active',id==='v'+v);});
+  renderKal();
+}
+function navPrev(){ANCHOR=addD(ANCHOR,-(VIEW===4?28:VIEW*7));renderKal();}
+function navNext(){ANCHOR=addD(ANCHOR,(VIEW===4?28:VIEW*7));renderKal();}
+function goToday(){ANCHOR=monDate(new Date());renderKal();}
+function setFilter(id){FILTER=(FILTER===id)?'':id;renderFilterBtns();renderKal();}
+
+function renderFilterBtns(){
+  var h=MA.map(function(m){
+    var act=FILTER===m.id;
+    return '<button class="filter-btn'+(act?' active':'')+'" style="'+(act?'':'border-color:'+m.color+';color:'+m.color)+'" onclick="setFilter(\''+m.id+'\')">'+m.id+'</button>';
+  }).join('');
+  document.getElementById('filter-btns').innerHTML=h;
+}
+
+function renderKal(){
+  if(!READY)return;
+  var todayISO=iso(new Date());
+  var todayMon=iso(monDate(new Date()));
+  var ws;
+  if(VIEW===4){CM=ANCHOR.getMonth();CY=ANCHOR.getFullYear();ws=getWeeksInMonth(CY,CM);}
+  else{ws=getWeeksFrom(ANCHOR,VIEW);}
+
+  var fmt=function(d){return p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear();};
+  var lbl=VIEW===4?MN[ANCHOR.getMonth()]+' '+ANCHOR.getFullYear():fmt(ws[0][0])+' &ndash; '+fmt(ws[ws.length-1][4]);
+  document.getElementById('range-lbl').innerHTML=lbl;
+
+  var h='';
+  ws.forEach(function(days,wi){
+    var isCW=iso(days[0])===todayMon;
+    if(wi>0)h+='<div class="week-sep"></div>';
+    h+='<div class="week'+(isCW?' cur-week':'')+'"><div></div>';
+    days.forEach(function(d,i){
+      var ds=iso(d),hol=HOL[ds],isToday=ds===todayISO;
+      var cls='wk-hdr'+(isToday?' today':hol?' hol':'');
+      h+='<div class="'+cls+'"><div class="dn">'+DN[i]+'</div>';
+      h+='<div>'+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.</div>';
+      if(hol&&!isToday)h+='<div class="hn">'+HOL[ds]+'</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+    h+=mkRow('Morgen','Morgen1',days,false,true,isCW);
+    h+=mkRow('2','Morgen2',days,false,false,isCW);
+    h+=mkRow('Triage','MorgenT',days,false,false,isCW);
+    h+='<div class="gap'+(isCW?' cur-week':'')+'"><div></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div></div>';
+    h+=mkRow('Nachm.','Nach1',days,false,true,isCW);
+    h+=mkRow('2','Nach2',days,false,false,isCW);
+    h+=mkRow('Triage','NachT',days,false,false,isCW);
+  });
+  document.getElementById('roster').innerHTML=h;
+}
+
+function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
+  var r='<div class="week'+(isCW?' cur-week':'')+'"><div class="rl'+(isSec?' sec':'')+'">'+lbl+'</div>';
+  days.forEach(function(d){
+    var ds=iso(d),isHol=HOL[ds];
+    r+='<div>';
+    if(isEmpty){
+      r+='<button class="cell mt" style="cursor:default">+</button>';
+    } else if(isHol){
+      r+='<button class="cell hc" disabled title="'+HOL[ds]+'">&mdash;</button>';
+    } else {
+      var val=getVal(ds,slot);
+      if(!val){
+        r+='<button class="cell mt" style="cursor:default">+</button>';
+      } else {
+        var mod=hasOverride(ds,slot)?'<span style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;opacity:0.9">&#9998;</span>':'';
+        var isMatch=FILTER&&val===FILTER;
+        var isFaded=FILTER&&val!==FILTER;
+        var cls='cell'+(isMatch?' match':isFaded?' faded':'');
+        r+='<button class="'+cls+'" style="background:'+maBg(val)+';color:'+maTx(val)+';position:relative" style="cursor:default">'+val+mod+'</button>';
+      }
+    }
+    r+='</div>';
+  });
+  return r+'</div>';
+}
+
+
+
+
+
+function renderLeg(){
+  var h=MA.map(function(m){return '<div class="li"><span class="ld" style="background:'+m.color+'"></span>'+m.name+'</div>';}).join('');
+  h+='<span style="width:1px;background:#eee;height:14px;margin:0 4px;display:inline-block"></span>';
+  h+='<div class="li"><span class="ld" style="background:#fdeaf3;border:1px solid #c0397a"></span>Feiertag SG</div>';
+  h+='<div class="li"><span class="ld" style="background:#1a1a1a;border-radius:50%"></span>Heute</div>';
+  h+='<div class="li"><span style="display:inline-block;width:12px;height:12px;background:#eef2ff;border-radius:3px"></span>Aktuelle Woche</div>';
+  document.getElementById('leg').innerHTML=h;
+}
+
+// STD tab
+function renderStd(){
+  document.getElementById('am').value=CM;
+  document.getElementById('ay').value=CY;
+  var h='<tr><th style="width:120px"></th>';
+  DN.forEach(function(d){h+='<th>'+d+'</th>';});h+='</tr>';
+  STD_SLOTS.forEach(function(slot){
+    h+='<tr><td class="sl">'+SLBL[slot]+'</td>';
+    [0,1,2,3,4].forEach(function(i){
+      h+='<td><select onchange="updS(\''+slot+'\','+i+',this.value)">';
+      h+='<option value="">\u2014</option>';
+      MA.forEach(function(m){h+='<option value="'+m.id+'"'+(STD[slot][i]===m.id?' selected':'')+'>'+m.id+'</option>';});
+      h+='</select></td>';
+    });h+='</tr>';
+  });
+  document.getElementById('stdt').innerHTML=h;
+}
+function updS(slot,i,val){STD[slot][i]=val;persistSTD();}
+
+function applyAll(){
+  var y=parseInt(document.getElementById('ay').value);
+  var today=new Date();today.setHours(0,0,0,0);
+  if(!confirm('Standard auf alle Monate ab heute bis Ende '+y+' anwenden?\nAlle manuellen \u00c4nderungen ab heute werden gel\u00f6scht.'))return;
+  if(!OV)OV={};
+  // Loop through all months from current month to end of year
+  var startM=today.getMonth();
+  for(var m=startM;m<12;m++){
+    var seen={};
+    getWeeksInMonth(y,m).forEach(function(days){
+      days.forEach(function(d){
+        // Only clear from today onwards
+        if(d<today)return;
+        var ds=iso(d);
+        if(seen[ds])return;seen[ds]=1;
+        ALL_SLOTS.forEach(function(s){delete OV[ovKey(ds,s)];});
+      });
+    });
+  }
+  persistOV();
+  ANCHOR=monDate(today);
+  showTab('k');
+}
+function applyS(){
+  var m=parseInt(document.getElementById('am').value);
+  var y=parseInt(document.getElementById('ay').value);
+  if(!confirm('Standard auf '+MN[m]+' '+y+' anwenden?\nManuelle \u00c4nderungen werden gel\u00f6scht.'))return;
+  if(!OV)OV={};
+  var seen={};
+  getWeeksInMonth(y,m).forEach(function(days){days.forEach(function(d){
+    var ds=iso(d);if(seen[ds])return;seen[ds]=1;
+    ALL_SLOTS.forEach(function(s){delete OV[ovKey(ds,s)];});
+  });});
+  persistOV();
+  ANCHOR=monDate(new Date(y,m,1));
+  showTab('k');
+}
+
+// MA tab
+function renderMA(){
+  var h='';
+  MA.forEach(function(m){
+    var tc=isDark(m.color)?'#f0f0f0':'#1a1a1a';
+    h+='<div class="macard"><div class="mabadge" style="background:'+m.color+';color:'+tc+'">'+m.id.slice(0,2)+'</div>';
+    h+='<div style="flex:1;min-width:0"><div style="font-weight:500">'+m.name+'</div>';
+    h+='<div style="font-size:11px;color:#888">'+m.id+'</div></div>';
+    h+='<button class="madel" onclick="delMA(\''+m.id+'\')">&#215;</button></div>';
+  });
+  h+='<div class="maform">';
+  h+='<div style="font-size:12px;font-weight:600;color:#444">Neue Person</div>';
+  h+='<label>K\u00fcrzel (max. 4)</label>';
+  h+='<input id="nid" maxlength="4" placeholder="z.B. MUS" oninput="this.value=this.value.toUpperCase()">';
+  h+='<label>Name</label><input id="nna" placeholder="z.B. Muster Maria">';
+  h+='<label>Farbe</label><div class="swatches">';
+  PAL.forEach(function(c){h+='<div class="sw'+(c===NC?' sel':'')+'" style="background:'+c+'" onclick="setC(\''+c+'\')"></div>';});
+  h+='<input type="color" class="swc" value="'+NC+'" oninput="setC(this.value)">';
+  h+='</div><button class="ok" onclick="addMA()">+ Hinzuf\u00fcgen</button></div>';
+  document.getElementById('mag').innerHTML=h;
+}
+function setC(c){NC=c;renderMA();}
+function addMA(){
+  var id=document.getElementById('nid').value.trim().toUpperCase();
+  var name=document.getElementById('nna').value.trim()||id;
+  if(!id){alert('K\u00fcrzel eingeben!');return;}
+  if(MA.find(function(m){return m.id===id;})){alert('K\u00fcrzel bereits vergeben.');return;}
+  MA.push({id:id,name:name,color:NC});
+  persistMA();
+  renderMA();renderLeg();renderFilterBtns();renderStd();
+}
+function delMA(id){
+  if(!confirm(id+' l\u00f6schen?'))return;
+  MA=MA.filter(function(m){return m.id!==id;});
+  if(FILTER===id)FILTER='';
+  persistMA();
+  renderMA();renderLeg();renderKal();
+}
+
+function resetM(){
+  if(!confirm('Monat zur\u00fccksetzen?\nAlle manuellen \u00c4nderungen f\u00fcr diesen Monat werden gel\u00f6scht.'))return;
+  if(!OV)OV={};
+  var seen={};
+  getWeeksInMonth(CY,CM).forEach(function(days){days.forEach(function(d){
+    var ds=iso(d);if(seen[ds])return;seen[ds]=1;
+    ALL_SLOTS.forEach(function(s){delete OV[ovKey(ds,s)];});
+  });});
+  persistOV();
+}
+
+function doCSV(){
+  var sl=['Morgen1','Morgen2','MorgenT','Nach1','Nach2','NachT'];
+  var lb=['Morgen 1','Morgen 2','Morgen Triage','Nachm. 1','Nachm. 2','Nachm. Triage'];
+  var csv='Datum;Feiertag;'+lb.join(';')+'\n';
+  for(var m=0;m<12;m++){
+    var seen={};
+    getWeeksInMonth(CY,m).forEach(function(days){days.forEach(function(d){
+      if(d.getMonth()!==m)return;
+      var ds=iso(d);if(seen[ds])return;seen[ds]=1;
+      var hol=HOL[ds]||'';
+      var vals=sl.map(function(s){return hol&&s!=='Morgen2'&&s!=='Nach2'?'Feiertag':getVal(ds,s);});
+      csv+=p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+CY+';'+hol+';'+vals.join(';')+'\n';
+    });});
+  }
+  var b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Telefonliste_'+CY+'.csv';a.click();
+}
+
+function showTab(t){
+  document.querySelectorAll('.tab').forEach(function(b,i){b.classList.toggle('active',['k','s','m'][i]===t);});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='k')renderKal();
+  if(t==='s')renderStd();
+  if(t==='m')renderMA();
+}
+
+// Start
+initFirebase();
+</script>
+</body>
+</html>
