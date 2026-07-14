@@ -24,15 +24,16 @@ button.del{background:#fdeaea;color:#c0392b;border-color:#f5c0c0}
 button.today-btn{background:#e8eeff;color:#1a4fa8;border-color:#b0c4f5;font-weight:600}
 button.filter-btn{font-weight:600;transition:all 0.15s}
 button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
-.view-toggle{display:flex;gap:0;border:1px solid #ddd;border-radius:6px;overflow:hidden}
+.view-toggle{display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden}
 .view-toggle button{border:none;border-radius:0;border-right:1px solid #ddd;padding:5px 10px;font-size:12px}
 .view-toggle button:last-child{border-right:none}
 .view-toggle button.active{background:#1a1a1a;color:#fff}
-.view-toggle button:hover:not(.active){background:#f0f0f0}
 .range-label{font-size:12px;color:#666;min-width:160px;text-align:center}
-.mtitle{font-size:14px;font-weight:600;margin-bottom:8px}
+.sync-indicator{font-size:11px;color:#aaa;margin-left:4px}
+.sync-indicator.saving{color:#f0a500}
+.sync-indicator.saved{color:#2d7d46}
+.sync-indicator.error{color:#c0392b}
 
-/* ROSTER */
 .week{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;margin-bottom:2px}
 .week.cur-week{background:#eef2ff;border-radius:6px;padding:3px 3px 0 3px}
 .gap{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;height:8px;margin-bottom:2px}
@@ -55,13 +56,10 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 .cell.match{outline:3px solid #1a1a1a;outline-offset:1px}
 .cell select{background:transparent;border:none;font-size:11px;font-weight:600;width:100%;text-align:center;cursor:pointer;outline:none}
 .week-sep{height:16px}
-
-/* legend */
 .legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 0 0;border-top:1px solid #eee;margin-top:10px;align-items:center}
 .li{display:flex;align-items:center;gap:5px;font-size:11px;color:#666}
 .ld{width:12px;height:12px;border-radius:3px;flex-shrink:0;display:inline-block}
 
-/* MA */
 .magrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px}
 .macard{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;position:relative}
 .mabadge{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
@@ -75,7 +73,6 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 .sw.sel{border-color:#222;box-shadow:0 0 0 2px #fff inset}
 .swc{width:26px;height:26px;padding:0;border:1px solid #ddd;border-radius:50%;cursor:pointer}
 
-/* STD */
 .stdbox{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:14px;margin-bottom:14px}
 .stdbox h3{font-size:12px;font-weight:600;margin-bottom:10px;color:#444}
 .stdtbl{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed}
@@ -84,6 +81,7 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
 .stdtbl select{font-size:11px;height:26px;border-radius:4px;width:100%;text-align:center;padding:2px}
 .arow{display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid #eee;flex-wrap:wrap}
 .note{font-size:11px;color:#bbb}
+.loading{text-align:center;padding:40px;color:#aaa;font-size:13px}
 </style>
 </head>
 <body>
@@ -99,8 +97,8 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
   <div id="tab-k" class="panel active">
     <div class="tb">
       <div class="view-toggle">
-        <button id="v1" class="active" onclick="setView(1)">1 Woche</button>
-        <button id="v2" onclick="setView(2)">2 Wochen</button>
+        <button id="v1" onclick="setView(1)">1 Woche</button>
+        <button id="v2" class="active" onclick="setView(2)">2 Wochen</button>
         <button id="v4" onclick="setView(4)">Monat</button>
       </div>
       <button onclick="navPrev()">&larr;</button>
@@ -110,10 +108,11 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
       <span style="width:1px;background:#ddd;height:20px;margin:0 2px;display:inline-block"></span>
       <span style="font-size:12px;color:#888">Filter:</span>
       <div id="filter-btns" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+      <span class="sync-indicator" id="sync">&#9679; verbunden</span>
       <button class="del" onclick="resetM()" style="margin-left:auto">Monat zur&uuml;cksetzen</button>
       <button class="pr" onclick="doCSV()">&darr; CSV</button>
     </div>
-    <div id="roster"></div>
+    <div id="roster"><div class="loading">Verbinde mit Datenbank&#8230;</div></div>
     <div class="legend" id="leg"></div>
   </div>
 
@@ -144,7 +143,23 @@ button.filter-btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
   </div>
 </div>
 
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
+// Firebase config
+firebase.initializeApp({
+  apiKey: "AIzaSyCsy_aSE0MWcMzeK0eNfcstXfzm1sgfSDo",
+  authDomain: "telefondienst-7education.firebaseapp.com",
+  databaseURL: "https://telefondienst-7education-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "telefondienst-7education",
+  storageBucket: "telefondienst-7education.firebasestorage.app",
+  messagingSenderId: "116475205333",
+  appId: "1:116475205333:web:294fb62295b8c05316345c"
+});
+var db = firebase.database();
+
+// App state
 var MN=['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
 var DN=['Mo','Di','Mi','Do','Fr'];
 var SLOTS=['Morgen1','MorgenT','Nach1','NachT'];
@@ -162,6 +177,7 @@ var HOL={
   '2027-08-01':'Nationalfeiertag','2027-11-01':'Allerheiligen',
   '2027-12-25':'Weihnachtstag','2027-12-26':'Stephanstag'
 };
+
 var MA=[
   {id:'FED',name:'FED',color:'#c8a000'},
   {id:'FCE',name:'FCE',color:'#c0397a'},
@@ -176,18 +192,53 @@ var STD={
   NachT:['FED','TAG','FED','HPH','TAG']
 };
 var OV={};
-var VIEW=2; // weeks to show: 1, 2, 4
-var ANCHOR=monDate(new Date()); // current anchor = monday of displayed range start
-var FILTER=''; // active kuerzel filter
+var VIEW=2;
+var ANCHOR=monDate(new Date());
+var FILTER='';
 var NC=PAL[5];
 var CM=new Date().getMonth(), CY=new Date().getFullYear();
+var READY=false;
 
-// helpers
-function monDate(d){
-  var r=new Date(d),dy=r.getDay();
-  r.setDate(r.getDate()-dy+(dy===0?-6:1));
-  r.setHours(0,0,0,0);return r;
+// Sync indicator
+function setSyncStatus(s){
+  var el=document.getElementById('sync');
+  if(!el)return;
+  if(s==='saving'){el.className='sync-indicator saving';el.innerHTML='&#9679; speichert...';}
+  else if(s==='saved'){el.className='sync-indicator saved';el.innerHTML='&#9679; gespeichert';setTimeout(function(){setSyncStatus('ok');},2000);}
+  else if(s==='error'){el.className='sync-indicator error';el.innerHTML='&#9679; Fehler';}
+  else{el.className='sync-indicator saved';el.innerHTML='&#9679; verbunden';}
 }
+
+// Firebase: write helpers
+function fbSet(path, val, cb){
+  setSyncStatus('saving');
+  db.ref(path).set(val).then(function(){setSyncStatus('saved');if(cb)cb();}).catch(function(){setSyncStatus('error');});
+}
+
+// Load all data from Firebase once, then listen for realtime changes
+function initFirebase(){
+  db.ref('/').on('value', function(snap){
+    var data=snap.val()||{};
+    if(data.overrides)OV=data.overrides; else OV={};
+    if(data.ma&&data.ma.length)MA=data.ma;
+    if(data.std)STD=data.std;
+    READY=true;
+    renderKal();
+    renderFilterBtns();
+    renderLeg();
+  }, function(err){
+    setSyncStatus('error');
+    document.getElementById('roster').innerHTML='<div class="loading" style="color:#c0392b">Verbindungsfehler. Bitte Seite neu laden.</div>';
+  });
+}
+
+// Persist to Firebase
+function persistOV(){fbSet('/overrides', OV);}
+function persistMA(){fbSet('/ma', MA);}
+function persistSTD(){fbSet('/std', STD);}
+
+// Helpers
+function monDate(d){var r=new Date(d),dy=r.getDay();r.setDate(r.getDate()-dy+(dy===0?-6:1));r.setHours(0,0,0,0);return r;}
 function addD(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function iso(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
 function p2(n){return n<10?'0'+n:''+n;}
@@ -197,46 +248,35 @@ function maBg(id){var m=MA.find(function(x){return x.id===id;});return m?m.color
 function maTx(id){var m=MA.find(function(x){return x.id===id;});if(!m)return'#333';return isDark(m.color)?'#f0f0f0':'#1a1a1a';}
 
 function getVal(ds,slot){
-  var k=ds+'|'+slot;
-  if(OV.hasOwnProperty(k))return OV[k];
+  // Firebase key-safe: replace | with __
+  var k=ds+'__'+slot;
+  if(OV&&OV.hasOwnProperty(k))return OV[k];
   if(HOL.hasOwnProperty(ds))return'';
-  var idx=didx(ds);
-  return STD[slot]?STD[slot][idx]:'';
+  return STD[slot]?STD[slot][didx(ds)]:'';
 }
+function ovKey(ds,slot){return ds+'__'+slot;}
 
-function getWeeksFrom(startMon, count){
+function getWeeksFrom(startMon,count){
   var ws=[];
-  for(var i=0;i<count;i++){
-    var w=addD(startMon,i*7);
-    ws.push([0,1,2,3,4].map(function(j){return addD(w,j);}));
-  }
+  for(var i=0;i<count;i++){var w=addD(startMon,i*7);ws.push([0,1,2,3,4].map(function(j){return addD(w,j);}));}
   return ws;
 }
-
 function getWeeksInMonth(y,m){
-  var first=new Date(y,m,1),last=new Date(y,m+1,0);
-  var w=monDate(first),ws=[];
+  var first=new Date(y,m,1),last=new Date(y,m+1,0),w=monDate(first),ws=[];
   while(w<=last){ws.push([0,1,2,3,4].map(function(i){return addD(w,i);}));w=addD(w,7);}
   return ws;
 }
 
 function setView(v){
   VIEW=v;
-  ['v1','v2','v4'].forEach(function(id){
-    document.getElementById(id).classList.toggle('active',id==='v'+v);
-  });
+  ['v1','v2','v4'].forEach(function(id){document.getElementById(id).classList.toggle('active',id==='v'+v);});
   renderKal();
 }
-
 function navPrev(){ANCHOR=addD(ANCHOR,-(VIEW===4?28:VIEW*7));renderKal();}
-function navNext(){ANCHOR=addD(ANCHOR, (VIEW===4?28:VIEW*7));renderKal();}
+function navNext(){ANCHOR=addD(ANCHOR,(VIEW===4?28:VIEW*7));renderKal();}
 function goToday(){ANCHOR=monDate(new Date());renderKal();}
+function setFilter(id){FILTER=(FILTER===id)?'':id;renderFilterBtns();renderKal();}
 
-function setFilter(id){
-  FILTER=(FILTER===id)?'':id;
-  renderFilterBtns();
-  renderKal();
-}
 function renderFilterBtns(){
   var h=MA.map(function(m){
     var act=FILTER===m.id;
@@ -246,38 +286,24 @@ function renderFilterBtns(){
 }
 
 function renderKal(){
+  if(!READY)return;
   var todayISO=iso(new Date());
   var todayMon=iso(monDate(new Date()));
-
   var ws;
-  if(VIEW===4){
-    // month view: anchor determines which month
-    var anchorMonth=ANCHOR.getMonth(), anchorYear=ANCHOR.getFullYear();
-    CM=anchorMonth; CY=anchorYear;
-    ws=getWeeksInMonth(anchorYear,anchorMonth);
-  } else {
-    ws=getWeeksFrom(ANCHOR,VIEW);
-  }
+  if(VIEW===4){CM=ANCHOR.getMonth();CY=ANCHOR.getFullYear();ws=getWeeksInMonth(CY,CM);}
+  else{ws=getWeeksFrom(ANCHOR,VIEW);}
 
-  // range label
-  var firstDay=ws[0][0], lastDay=ws[ws.length-1][4];
   var fmt=function(d){return p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+d.getFullYear();};
-  var lbl='';
-  if(VIEW===4){lbl=MN[ANCHOR.getMonth()]+' '+ANCHOR.getFullYear();}
-  else{lbl=fmt(firstDay)+' &ndash; '+fmt(lastDay);}
+  var lbl=VIEW===4?MN[ANCHOR.getMonth()]+' '+ANCHOR.getFullYear():fmt(ws[0][0])+' &ndash; '+fmt(ws[ws.length-1][4]);
   document.getElementById('range-lbl').innerHTML=lbl;
 
   var h='';
   ws.forEach(function(days,wi){
-    var weekMonISO=iso(days[0]);
-    var isCW=(weekMonISO===todayMon);
-
+    var isCW=iso(days[0])===todayMon;
     if(wi>0)h+='<div class="week-sep"></div>';
-
-    // header
     h+='<div class="week'+(isCW?' cur-week':'')+'"><div></div>';
     days.forEach(function(d,i){
-      var ds=iso(d),hol=HOL.hasOwnProperty(ds),isToday=(ds===todayISO);
+      var ds=iso(d),hol=HOL[ds],isToday=ds===todayISO;
       var cls='wk-hdr'+(isToday?' today':hol?' hol':'');
       h+='<div class="'+cls+'"><div class="dn">'+DN[i]+'</div>';
       h+='<div>'+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.</div>';
@@ -285,7 +311,6 @@ function renderKal(){
       h+='</div>';
     });
     h+='</div>';
-
     h+=mkRow('Morgen','Morgen1',days,false,true,isCW);
     h+=mkRow('2','Morgen2',days,true,false,isCW);
     h+=mkRow('Triage','MorgenT',days,false,false,isCW);
@@ -294,17 +319,13 @@ function renderKal(){
     h+=mkRow('2','Nach2',days,true,false,isCW);
     h+=mkRow('Triage','NachT',days,false,false,isCW);
   });
-
   document.getElementById('roster').innerHTML=h;
-  renderLeg();
-  renderFilterBtns();
 }
 
 function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
   var r='<div class="week'+(isCW?' cur-week':'')+'"><div class="rl'+(isSec?' sec':'')+'">'+lbl+'</div>';
   days.forEach(function(d){
-    var ds=iso(d);
-    var isHol=HOL.hasOwnProperty(ds);
+    var ds=iso(d),isHol=HOL[ds];
     r+='<div>';
     if(isEmpty){
       r+='<button class="cell mt" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
@@ -315,11 +336,11 @@ function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
       if(!val){
         r+='<button class="cell mt" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
       } else {
-        var mod=OV.hasOwnProperty(ds+'|'+slot)?'\u00b7':'';
+        var mod=OV&&OV.hasOwnProperty(ovKey(ds,slot))?'<span style="position:absolute;top:2px;right:3px;font-size:9px;line-height:1;opacity:0.9">&#9998;</span>':'';
         var isMatch=FILTER&&val===FILTER;
         var isFaded=FILTER&&val!==FILTER;
         var cls='cell'+(isMatch?' match':isFaded?' faded':'');
-        r+='<button class="'+cls+'" style="background:'+maBg(val)+';color:'+maTx(val)+'" onclick="editC(\''+ds+'\',\''+slot+'\',this)">'+val+mod+'</button>';
+        r+='<button class="'+cls+'" style="background:'+maBg(val)+';color:'+maTx(val)+';position:relative" onclick="editC(\''+ds+'\',\''+slot+'\',this)">'+val+mod+'</button>';
       }
     }
     r+='</div>';
@@ -329,16 +350,22 @@ function mkRow(lbl,slot,days,isEmpty,isSec,isCW){
 
 function editC(ds,slot,btn){
   if(btn.querySelector('select')||btn.disabled)return;
-  var cur=OV.hasOwnProperty(ds+'|'+slot)?OV[ds+'|'+slot]:(STD[slot]?STD[slot][didx(ds)]||'':'');
+  var cur=OV&&OV.hasOwnProperty(ovKey(ds,slot))?OV[ovKey(ds,slot)]:(STD[slot]?STD[slot][didx(ds)]||'':'');
   var o='<option value="">Leer</option>';
   MA.forEach(function(m){o+='<option value="'+m.id+'"'+(m.id===cur?' selected':'')+'>'+m.id+'</option>';});
   btn.innerHTML='<select onchange="saveC(\''+ds+'\',\''+slot+'\',this.value)" onblur="renderKal()">'+o+'</select>';
   btn.querySelector('select').focus();
 }
+
 function saveC(ds,slot,val){
   var def=STD[slot]?STD[slot][didx(ds)]||'':'';
-  if(val===def)delete OV[ds+'|'+slot]; else OV[ds+'|'+slot]=val;
-  renderKal();
+  if(!OV)OV={};
+  if(val===def||val===''){
+    delete OV[ovKey(ds,slot)];
+  } else {
+    OV[ovKey(ds,slot)]=val;
+  }
+  persistOV();
 }
 
 function renderLeg(){
@@ -350,7 +377,7 @@ function renderLeg(){
   document.getElementById('leg').innerHTML=h;
 }
 
-// STD
+// STD tab
 function renderStd(){
   document.getElementById('am').value=CM;
   document.getElementById('ay').value=CY;
@@ -367,21 +394,23 @@ function renderStd(){
   });
   document.getElementById('stdt').innerHTML=h;
 }
-function updS(slot,i,val){STD[slot][i]=val;renderKal();}
+function updS(slot,i,val){STD[slot][i]=val;persistSTD();}
 function applyS(){
   var m=parseInt(document.getElementById('am').value);
   var y=parseInt(document.getElementById('ay').value);
   if(!confirm('Standard auf '+MN[m]+' '+y+' anwenden?\nManuelle \u00c4nderungen werden gel\u00f6scht.'))return;
+  if(!OV)OV={};
   var seen={};
   getWeeksInMonth(y,m).forEach(function(days){days.forEach(function(d){
     var ds=iso(d);if(seen[ds])return;seen[ds]=1;
-    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ds+'|'+s];});
+    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ovKey(ds,s)];});
   });});
+  persistOV();
   ANCHOR=monDate(new Date(y,m,1));
   showTab('k');
 }
 
-// MA
+// MA tab
 function renderMA(){
   var h='';
   MA.forEach(function(m){
@@ -409,23 +438,26 @@ function addMA(){
   if(!id){alert('K\u00fcrzel eingeben!');return;}
   if(MA.find(function(m){return m.id===id;})){alert('K\u00fcrzel bereits vergeben.');return;}
   MA.push({id:id,name:name,color:NC});
-  renderMA();renderLeg();renderStd();renderFilterBtns();
+  persistMA();
+  renderMA();renderLeg();renderFilterBtns();renderStd();
 }
 function delMA(id){
   if(!confirm(id+' l\u00f6schen?'))return;
   MA=MA.filter(function(m){return m.id!==id;});
   if(FILTER===id)FILTER='';
+  persistMA();
   renderMA();renderLeg();renderKal();
 }
 
 function resetM(){
-  if(!confirm('Monat zur\u00fccksetzen?'))return;
+  if(!confirm('Monat zur\u00fccksetzen?\nAlle manuellen \u00c4nderungen f\u00fcr diesen Monat werden gel\u00f6scht.'))return;
+  if(!OV)OV={};
   var seen={};
   getWeeksInMonth(CY,CM).forEach(function(days){days.forEach(function(d){
     var ds=iso(d);if(seen[ds])return;seen[ds]=1;
-    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ds+'|'+s];});
+    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ovKey(ds,s)];});
   });});
-  renderKal();
+  persistOV();
 }
 
 function doCSV(){
@@ -455,9 +487,8 @@ function showTab(t){
   if(t==='m')renderMA();
 }
 
-// init — start with current week
-ANCHOR=monDate(new Date());
-renderKal();
+// Start
+initFirebase();
 </script>
 </body>
 </html>
