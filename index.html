@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Telefonliste & Triage-Planung</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;background:#f5f5f3;color:#222;min-height:100vh}
+.app{max-width:940px;margin:0 auto;padding:20px 16px}
+h1{font-size:18px;font-weight:600;color:#1a1a1a;margin-bottom:4px}
+.sub{font-size:12px;color:#888;margin-bottom:16px}
+.tabs{display:flex;border-bottom:1.5px solid #ddd;margin-bottom:16px}
+.tab{font-size:12px;padding:7px 16px;cursor:pointer;border:none;background:none;color:#888;border-bottom:2px solid transparent;margin-bottom:-1.5px;font-weight:500}
+.tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a}
+.panel{display:none}.panel.active{display:block}
+.tb{display:flex;align-items:center;gap:7px;margin-bottom:14px;flex-wrap:wrap}
+select,button{font-size:12px;padding:5px 10px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#222}
+button:hover{background:#f0f0f0}
+button.pr{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+button.ok{background:#e8f5e9;color:#2d7d46;border-color:#b2dfbb}
+button.del{background:#fdeaea;color:#c0392b;border-color:#f5c0c0}
+.mtitle{font-size:14px;font-weight:600;margin-bottom:8px}
+
+/* === ROSTER GRID === */
+.week{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;margin-bottom:2px}
+.wk-hdr{font-size:10px;color:#aaa;text-align:center;padding:2px 0}
+.wk-hdr .dn{font-size:9px;color:#ccc}
+.wk-hdr.hol{background:#fdeaf3;border-radius:4px;color:#c0397a}
+.wk-hdr.hol .dn{color:#e0a0c0}
+.wk-hdr.hn{font-size:8px;color:#c0397a;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wk-hdr.out{opacity:0.25}
+.rl{font-size:11px;color:#777;display:flex;align-items:center;padding-left:4px}
+.rl.sec{font-weight:600;color:#333;font-size:12px}
+.cell{height:27px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;cursor:pointer;border:none;width:100%}
+.cell:hover{opacity:0.82}
+.cell.mt{background:#f5f5f5;border:1px solid #e8e8e8;color:#ccc;font-weight:400}
+.cell.hc{background:#f9f0f5;border:1px dashed #dda0c0;opacity:0.45;cursor:default}
+.cell.ou{opacity:0.25}
+.cell select{background:transparent;border:none;font-size:11px;font-weight:600;width:100%;text-align:center;cursor:pointer;outline:none}
+.gap{display:grid;grid-template-columns:100px 1fr 1fr 1fr 1fr 1fr;gap:2px;height:8px;margin-bottom:2px}
+.gap-line{border-top:1.5px solid #eee;margin-top:4px}
+.legend{display:flex;gap:10px;flex-wrap:wrap;padding:10px 0 0;border-top:1px solid #eee;margin-top:10px;align-items:center}
+.li{display:flex;align-items:center;gap:5px;font-size:11px;color:#666}
+.ld{width:12px;height:12px;border-radius:3px;flex-shrink:0;display:inline-block}
+
+/* MA */
+.magrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-bottom:16px}
+.macard{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;position:relative}
+.mabadge{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
+.madel{position:absolute;top:8px;right:8px;width:20px;height:20px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;font-size:14px;color:#aaa;display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+.madel:hover{background:#fdeaea;color:#c0392b}
+.maform{background:#fafafa;border:1px dashed #ccc;border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px}
+.maform input{font-size:12px;padding:5px 8px;border:1px solid #ddd;border-radius:5px}
+.maform label{font-size:11px;color:#666}
+.swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;flex-shrink:0}
+.sw.sel{border-color:#222;box-shadow:0 0 0 1px #fff inset}
+.swc{width:26px;height:26px;padding:0;border:1px solid #ddd;border-radius:50%;cursor:pointer}
+
+/* STD */
+.stdbox{background:#fff;border:1px solid #e5e5e5;border-radius:8px;padding:14px;margin-bottom:14px}
+.stdbox h3{font-size:12px;font-weight:600;margin-bottom:10px;color:#444}
+.stdtbl{width:100%;border-collapse:separate;border-spacing:3px;table-layout:fixed}
+.stdtbl th{font-size:10px;color:#aaa;font-weight:400;text-align:center;padding:2px}
+.stdtbl td.sl{font-size:11px;color:#555;padding-left:4px;width:120px}
+.stdtbl select{font-size:11px;height:26px;border-radius:4px;width:100%;text-align:center;padding:2px}
+.arow{display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid #eee;flex-wrap:wrap}
+.note{font-size:11px;color:#bbb}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Telefonliste &amp; Triage-Planung</h1>
+  <p class="sub">7education AG &middot; Kanton St. Gallen</p>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('k')">Kalender</button>
+    <button class="tab" onclick="showTab('s')">Standard</button>
+    <button class="tab" onclick="showTab('m')">Mitarbeitende</button>
+  </div>
+
+  <div id="tab-k" class="panel active">
+    <div class="tb">
+      <button onclick="prev()">&larr;</button>
+      <select id="ms" onchange="goto()" style="min-width:110px">
+        <option value="0">Januar</option><option value="1">Februar</option>
+        <option value="2">M&auml;rz</option><option value="3">April</option>
+        <option value="4">Mai</option><option value="5">Juni</option>
+        <option value="6">Juli</option><option value="7">August</option>
+        <option value="8">September</option><option value="9">Oktober</option>
+        <option value="10">November</option><option value="11">Dezember</option>
+      </select>
+      <select id="ys" onchange="goto()" style="min-width:70px">
+        <option value="2026" selected>2026</option>
+        <option value="2027">2027</option>
+      </select>
+      <button onclick="next()">&rarr;</button>
+      <button class="del" onclick="resetM()">Monat zur&uuml;cksetzen</button>
+      <button class="pr" onclick="doCSV()" style="margin-left:auto">&darr; CSV</button>
+    </div>
+    <div id="roster"></div>
+    <div class="legend" id="leg"></div>
+  </div>
+
+  <div id="tab-s" class="panel">
+    <div class="stdbox">
+      <h3>Standard-Rotation bearbeiten</h3>
+      <table class="stdtbl" id="stdt"></table>
+      <div class="arow">
+        <span class="note">Standard anwenden auf:</span>
+        <select id="am" style="min-width:100px">
+          <option value="0">Januar</option><option value="1">Februar</option>
+          <option value="2">M&auml;rz</option><option value="3">April</option>
+          <option value="4">Mai</option><option value="5">Juni</option>
+          <option value="6">Juli</option><option value="7">August</option>
+          <option value="8">September</option><option value="9">Oktober</option>
+          <option value="10">November</option><option value="11">Dezember</option>
+        </select>
+        <select id="ay"><option value="2026">2026</option><option value="2027">2027</option></select>
+        <button class="ok" onclick="applyS()">&check; Auf Monat anwenden</button>
+        <span class="note">&middot; l&ouml;scht manuelle &Auml;nderungen</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-m" class="panel">
+    <p style="font-size:12px;color:#888;margin-bottom:12px">K&uuml;rzel werden im Kalender und Standard verwendet.</p>
+    <div class="magrid" id="mag"></div>
+  </div>
+</div>
+
+<script>
+var MN=['Januar','Februar','M\u00e4rz','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+var DN=['Mo','Di','Mi','Do','Fr'];
+var SLOTS=['Morgen1','MorgenT','Nach1','NachT'];
+var SLBL={'Morgen1':'Morgen 1','MorgenT':'Triage','Nach1':'Nachm. 1','NachT':'Triage'};
+var PAL=['#c8a000','#c0397a','#2d7d46','#1a6fa8','#7b4fa6','#d4840a','#0f8c8c','#b03a2e','#1a5276','#6c3483','#1e8449','#d35400'];
+var HOL={
+  '2026-01-01':'Neujahrstag','2026-01-02':'Berchtoldstag',
+  '2026-04-03':'Karfreitag','2026-04-06':'Ostermontag',
+  '2026-05-14':'Christi Himmelfahrt','2026-05-25':'Pfingstmontag',
+  '2026-08-01':'Nationalfeiertag','2026-11-01':'Allerheiligen',
+  '2026-12-25':'Weihnachtstag','2026-12-26':'Stephanstag',
+  '2027-01-01':'Neujahrstag','2027-01-02':'Berchtoldstag',
+  '2027-03-26':'Karfreitag','2027-03-29':'Ostermontag',
+  '2027-05-06':'Christi Himmelfahrt','2027-05-17':'Pfingstmontag',
+  '2027-08-01':'Nationalfeiertag','2027-11-01':'Allerheiligen',
+  '2027-12-25':'Weihnachtstag','2027-12-26':'Stephanstag'
+};
+var MA=[
+  {id:'FED',name:'FED',color:'#c8a000'},
+  {id:'FCE',name:'FCE',color:'#c0397a'},
+  {id:'TAG',name:'TAG',color:'#2d7d46'},
+  {id:'HPH',name:'HPH',color:'#1a6fa8'},
+  {id:'COS',name:'COS',color:'#7b4fa6'}
+];
+var STD={
+  Morgen1:['FED','FCE','TAG','FED','TAG'],
+  MorgenT:['HPH','TAG','HPH','TAG','FED'],
+  Nach1:['TAG','FCE','COS','TAG','HPH'],
+  NachT:['FED','TAG','FED','HPH','TAG']
+};
+var OV={};
+var CY=2026,CM=new Date().getMonth();
+var NC=PAL[5];
+
+function monDate(date){
+  var d=new Date(date),dy=d.getDay();
+  d.setDate(d.getDate()-dy+(dy===0?-6:1));
+  d.setHours(0,0,0,0);return d;
+}
+function addD(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function iso(d){
+  return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());
+}
+function p2(n){return n<10?'0'+n:''+n;}
+function didx(ds){return(new Date(ds).getDay()+6)%7;}
+function isDark(h){
+  var r=parseInt(h.slice(1,3),16),g=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+  return(r*299+g*587+b*114)/1000<145;
+}
+function maBg(id){var m=MA.find(function(x){return x.id===id;});return m?m.color:'#ccc';}
+function maTx(id){var m=MA.find(function(x){return x.id===id;});if(!m)return'#333';return isDark(m.color)?'#f0f0f0':'#1a1a1a';}
+
+function getWeeks(y,m){
+  var first=new Date(y,m,1),last=new Date(y,m+1,0);
+  var w=monDate(first),ws=[];
+  while(w<=last){
+    ws.push([0,1,2,3,4].map(function(i){return addD(w,i);}));
+    w=addD(w,7);
+  }
+  return ws;
+}
+
+function getVal(ds,slot){
+  var k=ds+'|'+slot;
+  if(OV.hasOwnProperty(k))return OV[k];
+  if(HOL.hasOwnProperty(ds))return'';
+  var idx=didx(ds);
+  return STD[slot]?STD[slot][idx]:'';
+}
+
+function renderKal(){
+  document.getElementById('ms').value=CM;
+  document.getElementById('ys').value=CY;
+  var ws=getWeeks(CY,CM);
+  var h='<div class="mtitle">'+MN[CM]+' '+CY+'</div>';
+
+  ws.forEach(function(days){
+    // date header row
+    h+='<div class="week"><div></div>';
+    days.forEach(function(d,i){
+      var ds=iso(d),inM=d.getMonth()===CM,hol=inM&&HOL[ds];
+      var cls='wk-hdr'+(hol?' hol':'')+(inM?'':' out');
+      h+='<div class="'+cls+'"><div class="dn">'+DN[i]+'</div>';
+      h+='<div>'+p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.</div>';
+      if(hol)h+='<div class="hn">'+HOL[ds]+'</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+
+    // Morgen 1
+    h+=mkRow('Morgen','Morgen1',days,false,true);
+    h+=mkRow('2','Morgen2',days,true,false);
+    h+=mkRow('Triage','MorgenT',days,false,false);
+    // gap
+    h+='<div class="gap"><div></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div><div class="gap-line"></div></div>';
+    // Nachm
+    h+=mkRow('Nachm.','Nach1',days,false,true);
+    h+=mkRow('2','Nach2',days,true,false);
+    h+=mkRow('Triage','NachT',days,false,false);
+
+    h+='<div style="height:14px"></div>';
+  });
+
+  document.getElementById('roster').innerHTML=h;
+  renderLeg();
+}
+
+function mkRow(lbl,slot,days,isEmpty,isSec){
+  var r='<div class="week"><div class="rl'+(isSec?' sec':'')+'">'+lbl+'</div>';
+  days.forEach(function(d){
+    var ds=iso(d),inM=d.getMonth()===CM;
+    var isHol=HOL.hasOwnProperty(ds)&&inM;
+    r+='<div>';
+    if(isEmpty){
+      r+='<button class="cell mt'+(inM?'':' ou')+'" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
+    } else if(isHol){
+      r+='<button class="cell hc" disabled title="'+HOL[ds]+'">&mdash;</button>';
+    } else {
+      var val=getVal(ds,slot);
+      if(!val){
+        r+='<button class="cell mt'+(inM?'':' ou')+'" onclick="editC(\''+ds+'\',\''+slot+'\',this)">+</button>';
+      } else {
+        var mod=OV.hasOwnProperty(ds+'|'+slot)?'\u00b7':'';
+        r+='<button class="cell'+(inM?'':' ou')+'" style="background:'+maBg(val)+';color:'+maTx(val)+'" onclick="editC(\''+ds+'\',\''+slot+'\',this)">'+val+mod+'</button>';
+      }
+    }
+    r+='</div>';
+  });
+  return r+'</div>';
+}
+
+function editC(ds,slot,btn){
+  if(btn.querySelector('select')||btn.disabled)return;
+  var cur=OV.hasOwnProperty(ds+'|'+slot)?OV[ds+'|'+slot]:(STD[slot]?STD[slot][didx(ds)]||'':'');
+  var o='<option value="">Leer</option>';
+  MA.forEach(function(m){o+='<option value="'+m.id+'"'+(m.id===cur?' selected':'')+'>'+m.id+'</option>';});
+  btn.innerHTML='<select onchange="saveC(\''+ds+'\',\''+slot+'\',this.value)" onblur="renderKal()">'+o+'</select>';
+  btn.querySelector('select').focus();
+}
+function saveC(ds,slot,val){
+  var def=STD[slot]?STD[slot][didx(ds)]||'':'';
+  if(val===def)delete OV[ds+'|'+slot]; else OV[ds+'|'+slot]=val;
+  renderKal();
+}
+
+function renderLeg(){
+  var h=MA.map(function(m){return '<div class="li"><span class="ld" style="background:'+m.color+'"></span>'+m.name+'</div>';}).join('');
+  h+='<span style="width:1px;background:#eee;height:14px;margin:0 4px;display:inline-block"></span>';
+  h+='<div class="li"><span class="ld" style="background:#fdeaf3;border:1px solid #c0397a"></span>Feiertag SG</div>';
+  h+='<div class="li" style="color:#ccc">&middot; = manuell</div>';
+  document.getElementById('leg').innerHTML=h;
+}
+
+// STD tab
+function renderStd(){
+  document.getElementById('am').value=CM;
+  document.getElementById('ay').value=CY;
+  var h='<tr><th style="width:120px"></th>';
+  DN.forEach(function(d){h+='<th>'+d+'</th>';});h+='</tr>';
+  SLOTS.forEach(function(slot){
+    h+='<tr><td class="sl">'+SLBL[slot]+'</td>';
+    [0,1,2,3,4].forEach(function(i){
+      h+='<td><select onchange="updS(\''+slot+'\','+i+',this.value)">';
+      h+='<option value="">\u2014</option>';
+      MA.forEach(function(m){h+='<option value="'+m.id+'"'+(STD[slot][i]===m.id?' selected':'')+'>'+m.id+'</option>';});
+      h+='</select></td>';
+    });h+='</tr>';
+  });
+  document.getElementById('stdt').innerHTML=h;
+}
+function updS(slot,i,val){STD[slot][i]=val;renderKal();}
+function applyS(){
+  var m=parseInt(document.getElementById('am').value);
+  var y=parseInt(document.getElementById('ay').value);
+  if(!confirm('Standard auf '+MN[m]+' '+y+' anwenden?\nManuelle \u00c4nderungen werden gel\u00f6scht.'))return;
+  var seen={};
+  getWeeks(y,m).forEach(function(days){days.forEach(function(d){
+    var ds=iso(d);if(seen[ds])return;seen[ds]=1;
+    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ds+'|'+s];});
+  });});
+  CY=y;CM=m;showTab('k');
+}
+
+// MA tab
+function renderMA(){
+  var h='';
+  MA.forEach(function(m){
+    var tc=isDark(m.color)?'#f0f0f0':'#1a1a1a';
+    h+='<div class="macard"><div class="mabadge" style="background:'+m.color+';color:'+tc+'">'+m.id.slice(0,2)+'</div>';
+    h+='<div style="flex:1;min-width:0"><div style="font-weight:500">'+m.name+'</div>';
+    h+='<div style="font-size:11px;color:#888">'+m.id+'</div></div>';
+    h+='<button class="madel" onclick="delMA(\''+m.id+'\')">&#215;</button></div>';
+  });
+  h+='<div class="maform">';
+  h+='<div style="font-size:12px;font-weight:600;color:#444">Neue Person</div>';
+  h+='<label>K\u00fcrzel (max. 4)</label>';
+  h+='<input id="nid" maxlength="4" placeholder="z.B. MUS" oninput="this.value=this.value.toUpperCase()">';
+  h+='<label>Name</label><input id="nna" placeholder="z.B. Muster Maria">';
+  h+='<label>Farbe</label><div class="swatches">';
+  PAL.forEach(function(c){h+='<div class="sw'+(c===NC?' sel':'')+'" style="background:'+c+'" onclick="setC(\''+c+'\')"></div>';});
+  h+='<input type="color" class="swc" value="'+NC+'" oninput="setC(this.value)">';
+  h+='</div><button class="ok" onclick="addMA()">+ Hinzuf\u00fcgen</button></div>';
+  document.getElementById('mag').innerHTML=h;
+}
+function setC(c){NC=c;renderMA();}
+function addMA(){
+  var id=document.getElementById('nid').value.trim().toUpperCase();
+  var name=document.getElementById('nna').value.trim()||id;
+  if(!id){alert('K\u00fcrzel eingeben!');return;}
+  if(MA.find(function(m){return m.id===id;})){alert('K\u00fcrzel bereits vergeben.');return;}
+  MA.push({id:id,name:name,color:NC});
+  renderMA();renderLeg();renderStd();
+}
+function delMA(id){
+  if(!confirm(id+' l\u00f6schen?'))return;
+  MA=MA.filter(function(m){return m.id!==id;});
+  renderMA();renderLeg();renderKal();
+}
+
+// Nav
+function showTab(t){
+  document.querySelectorAll('.tab').forEach(function(b,i){b.classList.toggle('active',['k','s','m'][i]===t);});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('tab-'+t).classList.add('active');
+  if(t==='k')renderKal();
+  if(t==='s')renderStd();
+  if(t==='m')renderMA();
+}
+function prev(){CM--;if(CM<0){CM=11;CY--;}renderKal();}
+function next(){CM++;if(CM>11){CM=0;CY++;}renderKal();}
+function goto(){CM=parseInt(document.getElementById('ms').value);CY=parseInt(document.getElementById('ys').value);renderKal();}
+function resetM(){
+  if(!confirm(MN[CM]+' '+CY+' zur\u00fccksetzen?'))return;
+  var seen={};
+  getWeeks(CY,CM).forEach(function(days){days.forEach(function(d){
+    var ds=iso(d);if(seen[ds])return;seen[ds]=1;
+    SLOTS.concat(['Morgen2','Nach2']).forEach(function(s){delete OV[ds+'|'+s];});
+  });});
+  renderKal();
+}
+function doCSV(){
+  var sl=['Morgen1','Morgen2','MorgenT','Nach1','Nach2','NachT'];
+  var lb=['Morgen 1','Morgen 2','Morgen Triage','Nachm. 1','Nachm. 2','Nachm. Triage'];
+  var csv='Datum;Feiertag;'+lb.join(';')+'\n';
+  for(var m=0;m<12;m++){
+    var seen={};
+    getWeeks(CY,m).forEach(function(days){days.forEach(function(d){
+      if(d.getMonth()!==m)return;
+      var ds=iso(d);if(seen[ds])return;seen[ds]=1;
+      var hol=HOL[ds]||'';
+      var vals=sl.map(function(s){return hol&&s!=='Morgen2'&&s!=='Nach2'?'Feiertag':getVal(ds,s);});
+      csv+=p2(d.getDate())+'.'+p2(d.getMonth()+1)+'.'+CY+';'+hol+';'+vals.join(';')+'\n';
+    });});
+  }
+  var b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='Telefonliste_'+CY+'.csv';a.click();
+}
+
+renderKal();
+</script>
+</body>
+</html>
